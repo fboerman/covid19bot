@@ -1,0 +1,5 @@
+env
+covid19bot/secrets.py
+*.pyc
+.idea
+*.sqlite3

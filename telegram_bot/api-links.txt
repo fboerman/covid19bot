@@ -1,0 +1,1 @@
+curl https://api.telegram.org/bot<bot_token>/setWebhook?url=https://<url>/telegram/callback/<bot_token>/
