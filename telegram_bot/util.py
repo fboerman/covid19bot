@@ -6,6 +6,7 @@ from .models import Subscription
 import logging
 from sqlalchemy import inspect
 from sqlalchemy.sql.sqltypes import BIGINT
+from telegram_bot.data_util import get_latest_rivm_datatable
 
 def get_subscription(chat_id):
     try:
@@ -18,12 +19,12 @@ def get_subscription(chat_id):
 def get_bot():
     return Bot(token=settings.TELEGRAMBOT_TOKEN)
 
-def send_to_sub(sub, msg, bot=None):
+def send_to_sub(sub, msg, bot=None, parsemode=None):
     if bot is None:
         bot = get_bot()
 
     try:
-        bot.send_message(chat_id=sub.chat_id, text=msg)
+        bot.send_message(chat_id=sub.chat_id, text=msg, parse_mode=parsemode)
     except Unauthorized as e:
         # if the user has blocked the bot, throw away the subscription
         if str(e) == 'Forbidden: bot was blocked by the user':
@@ -57,33 +58,70 @@ def get_bot_dispatcher():
         sub.save()
         context.bot.send_message(chat_id=update.message.chat_id, text="TU/e push bericht ge{}activeerd".format("de" if not arg else ""))
 
-    def citieswarning(update,context):
-        sub = get_subscription(update.message.chat_id)
-        if len(context.args) < 1:
-            context.bot.send_message(chat_id=update.message.chat_id, text="vereist argument, zie /help")
-            return
-
-        args = context.args[0].split(';')
+    def validcities():
         db = settings.DASHBOARD_DATA_ENGINE
         inspector = inspect(db)
         columns = inspector.get_columns('netherlands_cities')
         cities = [c['name'] for c in columns if type(c['type']) == BIGINT]
         cities.remove('index')
 
-        illigal = set(args) - set(cities)
-        if len(illigal) != 0:
-            context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldige steden: {}, moet een keuze zijn uit: {}".format(illigal, cities))
+        return cities
+
+
+    def subtocity(update, context):
+        sub = get_subscription(update.message.chat_id)
+        if len(context.args) < 1:
+            context.bot.send_message(chat_id=update.message.chat_id, text="Vereist argument, zie /help")
             return
 
-        sub.citieswarning = str(context.args[0])
+        if context.args[0] not in validcities():
+            context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldige gemeente, zie /gemeenten voor een lijst van opties")
+            return
+
+        existing = set(sub.citieswarning.split(';'))
+        existing.add(context.args[0])
+        sub.citieswarning = ";".join(existing)
         sub.save()
-        context.bot.send_message(chat_id=update.message.chat_id, text="Steden geupdate")  
+
+        context.bot.send_message(chat_id=update.message.chat_id, text= "Subscription geupdate")
+
+    def unsubtocity(update, context):
+        sub = get_subscription(update.message.chat_id)
+        if len(context.args) < 1:
+            context.bot.send_message(chat_id=update.message.chat_id, text="Vereist argument, zie /help")
+            return
+
+        existing = set(sub.citieswarning.split(';'))
+        try:
+            existing.remove(context.args[0])
+        except KeyError:
+            context.bot.send_message(chat_id=update.message.chat_id, text="Deze stad stond niet in subscriptions")
+            return
+
+        sub.citieswarning = ";".join(existing)
+        sub.save()
+        context.bot.send_message(chat_id=update.message.chat_id, text="Subscription geupdate")
+
+    def cities(update, context):
+        sub = get_subscription(update.message.chat_id)
+        context.bot.send_message(chat_id=update.message.chat_id, text=str(validcities()))
+
+    def status(update, context):
+        sub = get_subscription(update.message.chat_id)
+        cities = sub.citieswarning.split(';')
+        msg = "Laatste RIVM data:\n ``` " + get_latest_rivm_datatable(cities) + " ``` "
+
+        context.bot.send_message(chat_id=update.message.chat_id, text=msg, parse_mode='MarkdownV2')
 
     def help(update, context):
-        helpmessage = """/help dit bericht\n
-/tuewarning <0/1> - krijg bericht als tue nieuwe update pushed
-/stadupdate <stad1;stad2> - krijg een update van nieuwe gevallen zodra RIVM dat pushed 
+        helpmessage = """/help dit bericht
+/tuewarning <0/1> - krijg bericht als TU/e nieuwe update pushed
+/subscribestad stad - krijg een update van stand van corona gevallen zodra het RIVM dat pushed
+/unsubscribestad stad - zet stad update uit
+/status - krijg een een stand van zaken van je geselecteerde steden volgens laatste data van RIVM
+/gemeenten - lijst van alle ondersteunde gemeenten 
         """
+        #/top20 - de top 20 van nederlandse gemeente met actieve corona gevallen
 
         context.bot.send_message(chat_id=update.message.chat_id, text=helpmessage)
 
@@ -91,7 +129,10 @@ def get_bot_dispatcher():
     dispatcher.add_handler(CommandHandler('caps', caps))
     dispatcher.add_handler(CommandHandler('help', help))
     dispatcher.add_handler(CommandHandler('tuewarning', tuewarning))
-    dispatcher.add_handler(CommandHandler('stadupdate', citieswarning))
+    dispatcher.add_handler(CommandHandler('subscribestad', subtocity))
+    dispatcher.add_handler(CommandHandler('unsubscribestad', unsubtocity))
+    dispatcher.add_handler(CommandHandler('gemeenten', cities))
+    dispatcher.add_handler(CommandHandler('status', status))
 
     fh = logging.FileHandler('telegram.log')
     fh.setLevel(logging.INFO)
