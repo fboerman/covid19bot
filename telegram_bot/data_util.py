@@ -5,6 +5,9 @@ from tabulate import tabulate
 def get_latest_rivm_datatable(cities):
     db = settings.DASHBOARD_DATA_ENGINE
 
+    if '' in cities:
+        cities.remove('')
+
     sql = "select \"" + '","'.join(cities) + "\" from netherlands_cities ORDER BY time DESC LIMIT 2"
     with db.connect() as con:
         try:
