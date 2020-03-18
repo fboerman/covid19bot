@@ -4,9 +4,7 @@ from telegram.ext import Dispatcher, CommandHandler
 from telegram.error import Unauthorized
 from .models import Subscription
 import logging
-from sqlalchemy import inspect
-from sqlalchemy.sql.sqltypes import BIGINT
-from telegram_bot.data_util import get_latest_rivm_datatable
+from telegram_bot.data_util import *
 
 def get_subscription(chat_id):
     try:
@@ -58,16 +56,6 @@ def get_bot_dispatcher():
         sub.save()
         context.bot.send_message(chat_id=update.message.chat_id, text="TU/e push bericht ge{}activeerd".format("de" if not arg else ""))
 
-    def validcities():
-        db = settings.DASHBOARD_DATA_ENGINE
-        inspector = inspect(db)
-        columns = inspector.get_columns('netherlands_cities')
-        cities = [c['name'] for c in columns if type(c['type']) == BIGINT]
-        cities.remove('index')
-
-        return cities
-
-
     def subtocity(update, context):
         sub = get_subscription(update.message.chat_id)
         if len(context.args) < 1:
@@ -113,15 +101,20 @@ def get_bot_dispatcher():
 
         context.bot.send_message(chat_id=update.message.chat_id, text=msg, parse_mode='MarkdownV2')
 
+    def top20(update, context):
+        msg = "top 20 gemeenten:\n ``` " + get_top20_datatable() + " ``` "
+
+        context.bot.send_message(chat_id=update.message.chat_id, text=msg, parse_mode='MarkdownV2')
+
     def help(update, context):
         helpmessage = """/help dit bericht
 /tuewarning <0/1> - krijg bericht als TU/e nieuwe update pushed
 /subscribestad stad - krijg een update van stand van corona gevallen zodra het RIVM dat pushed
 /unsubscribestad stad - zet stad update uit
 /status - krijg een een stand van zaken van je geselecteerde steden volgens laatste data van RIVM
-/gemeenten - lijst van alle ondersteunde gemeenten 
+/gemeenten - lijst van alle ondersteunde gemeenten
+/top20 - de top 20 van nederlandse gemeente met actieve corona gevallen 
         """
-        #/top20 - de top 20 van nederlandse gemeente met actieve corona gevallen
 
         context.bot.send_message(chat_id=update.message.chat_id, text=helpmessage)
 
@@ -133,6 +126,7 @@ def get_bot_dispatcher():
     dispatcher.add_handler(CommandHandler('unsubscribestad', unsubtocity))
     dispatcher.add_handler(CommandHandler('gemeenten', cities))
     dispatcher.add_handler(CommandHandler('status', status))
+    dispatcher.add_handler(CommandHandler('top20', top20))
 
     fh = logging.FileHandler('telegram.log')
     fh.setLevel(logging.INFO)
