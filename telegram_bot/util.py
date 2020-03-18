@@ -1,6 +1,7 @@
 from django.conf import settings
 from telegram import Bot
 from telegram.ext import Dispatcher, CommandHandler
+from telegram.error import Unauthorized
 from .models import Subscription
 import logging
 from sqlalchemy import inspect
@@ -14,9 +15,23 @@ def get_subscription(chat_id):
         sub.save()
         return sub
 
+def get_bot():
+    return Bot(token=settings.TELEGRAMBOT_TOKEN)
+
+def send_to_sub(sub, msg, bot=None):
+    if bot is None:
+        bot = get_bot()
+
+    try:
+        bot.send_message(chat_id=sub.chat_id, text=msg)
+    except Unauthorized as e:
+        # if the user has blocked the bot, throw away the subscription
+        if str(e) == 'Forbidden: bot was blocked by the user':
+            sub.delete()
+
 
 def get_bot_dispatcher():
-    bot = Bot(token=settings.TELEGRAMBOT_TOKEN)
+    bot = get_bot()
     dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
 
     def start(update, context):
