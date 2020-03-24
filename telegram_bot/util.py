@@ -56,6 +56,21 @@ def get_bot_dispatcher():
         sub.save()
         context.bot.send_message(chat_id=update.message.chat_id, text="TU/e push bericht ge{}activeerd".format("de" if not arg else ""))
 
+    def top20warning(update, context):
+        sub = get_subscription(update.message.chat_id)
+        if len(context.args) < 1:
+            context.bot.send_message(chat_id=update.message.chat_id, text="vereist argument, zie /help")
+            return
+        try:
+            arg = bool(int(context.args[0]))
+        except:
+            context.bot.send_message(chat_id=update.message.chat_id, text="verkeerd argument, zie /help")
+            return
+        sub.top20warning = arg
+        sub.save()
+        context.bot.send_message(chat_id=update.message.chat_id, text="top20 update bericht ge{}activeerd".format("de" if not arg else ""))
+
+
     def subtocity(update, context):
         sub = get_subscription(update.message.chat_id)
         if len(context.args) < 1:
@@ -130,6 +145,7 @@ def get_bot_dispatcher():
     def help(update, context):
         helpmessage = """/help dit bericht
 /tuewarning <0/1> - krijg bericht als TU/e nieuwe update pushed
+/top20warning <0/1> - krijg een update van top20 van gemeenten zodra RIVM dat pushed
 /subscribestad stad - krijg een update van stand van corona gevallen zodra het RIVM dat pushed, mag ook getal zijn in index
 /unsubscribestad stad - zet stad update uit, mag ook getal zijn in index
 /status - krijg een een stand van zaken van je geselecteerde steden volgens laatste data van RIVM
@@ -148,6 +164,7 @@ def get_bot_dispatcher():
     dispatcher.add_handler(CommandHandler('gemeenten', cities))
     dispatcher.add_handler(CommandHandler('status', status))
     dispatcher.add_handler(CommandHandler('top20', top20))
+    dispatcher.add_handler(CommandHandler('top20warning', top20warning))
 
     fh = logging.FileHandler('telegram.log')
     fh.setLevel(logging.INFO)
