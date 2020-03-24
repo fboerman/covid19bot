@@ -33,6 +33,7 @@ def validcities():
     columns = inspector.get_columns('netherlands_cities')
     cities = [c['name'] for c in columns if type(c['type']) == BIGINT]
     cities.remove('index')
+    cities.sort()
 
     return cities
 

@@ -2,8 +2,10 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from telegram import Update
 from .util import get_bot_dispatcher
+from .data_util import validcities
 from django.http import HttpResponseForbidden, HttpResponseBadRequest, JsonResponse
 import json
+from django.shortcuts import render
 
 @csrf_exempt
 def callback(request, bottoken):
@@ -21,3 +23,8 @@ def callback(request, bottoken):
     dispatcher.process_update(update)
 
     return JsonResponse({})
+
+def cities(request):
+    return render(request, 'list.html', {
+        'items': validcities()
+    })

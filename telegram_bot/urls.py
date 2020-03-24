@@ -5,4 +5,5 @@ app_name = 'telegram_bot'
 
 urlpatterns = [
     path('callback/<str:bottoken>/', views.callback, name='callback'),
+    path('cities/NL/', views.cities, name='citiesNL'),
 ]

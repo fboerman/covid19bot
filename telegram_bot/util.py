@@ -62,12 +62,20 @@ def get_bot_dispatcher():
             context.bot.send_message(chat_id=update.message.chat_id, text="Vereist argument, zie /help")
             return
 
-        if context.args[0] not in validcities():
-            context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldige gemeente, zie /gemeenten voor een lijst van opties")
-            return
+        city = context.args[0]
+        try:
+            city = int(city)
+            if city >= len(validcities()) or city < 0:
+                context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldig nummer, zie /gemeenten")
+                return
+            city = validcities()[city]
+        except ValueError:
+            if city not in validcities():
+                context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldige gemeente, zie /gemeenten")
+                return
 
         existing = set(sub.citieswarning.split(';'))
-        existing.add(context.args[0])
+        existing.add(city)
         sub.citieswarning = ";".join(existing)
         sub.save()
 
@@ -79,9 +87,21 @@ def get_bot_dispatcher():
             context.bot.send_message(chat_id=update.message.chat_id, text="Vereist argument, zie /help")
             return
 
+        city = context.args[0]
+        try:
+            city = int(city)
+            if city >= len(validcities()) or city < 0:
+                context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldig nummer, zie /gemeenten")
+                return
+            city = validcities()[city]
+        except ValueError:
+            if city not in validcities():
+                context.bot.send_message(chat_id=update.message.chat_id, text="Ongeldige gemeente, zie /gemeenten")
+                return
+
         existing = set(sub.citieswarning.split(';'))
         try:
-            existing.remove(context.args[0])
+            existing.remove(city)
         except KeyError:
             context.bot.send_message(chat_id=update.message.chat_id, text="Deze stad stond niet in subscriptions")
             return
@@ -92,7 +112,8 @@ def get_bot_dispatcher():
 
     def cities(update, context):
         sub = get_subscription(update.message.chat_id)
-        context.bot.send_message(chat_id=update.message.chat_id, text=str(validcities()))
+        # context.bot.send_message(chat_id=update.message.chat_id, text=str(validcities()))
+        context.bot.send_message(chat_id=update.message.chat_id, text="Lijst van gemeenten met index [klik hier](https://covid19bot.boerman.dev/telegram/cities/NL/)", parse_mode='MarkdownV2')
 
     def status(update, context):
         sub = get_subscription(update.message.chat_id)
@@ -109,8 +130,8 @@ def get_bot_dispatcher():
     def help(update, context):
         helpmessage = """/help dit bericht
 /tuewarning <0/1> - krijg bericht als TU/e nieuwe update pushed
-/subscribestad stad - krijg een update van stand van corona gevallen zodra het RIVM dat pushed
-/unsubscribestad stad - zet stad update uit
+/subscribestad stad - krijg een update van stand van corona gevallen zodra het RIVM dat pushed, mag ook getal zijn in index
+/unsubscribestad stad - zet stad update uit, mag ook getal zijn in index
 /status - krijg een een stand van zaken van je geselecteerde steden volgens laatste data van RIVM
 /gemeenten - lijst van alle ondersteunde gemeenten
 /top20 - de top 20 van nederlandse gemeente met actieve corona gevallen 

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<ol start="0">
+{% for item in items %}
+<li>{{ item }}</li>
+{% endfor %}
+</ol>
+{% endblock %}
